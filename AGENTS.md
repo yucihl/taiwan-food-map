@@ -91,6 +91,7 @@ _data/tags.json、_data/regions.json ──▶ api/meta.json ──────�
 │   ├── vendor/                ← 第三方函式庫，不要修改
 │   └── images/shops/<slug>/   ← 每間店的照片資料夾
 ├── scripts/                   ← 開發用 Node 腳本（不會部署）
+├── .github/workflows/auto-merge.yml ← 自動合併店家更新（見第 12 節）
 └── preview/                   ← npm run preview 的輸出（不提交到 git）
 ```
 
@@ -417,6 +418,8 @@ Footer：© · 資料更新時間
 - ❌ 修改已存在店家的檔名／slug
 - ❌ 刪除或改名預設標籤
 - ❌ 修改 `assets/vendor/` 裡的檔案
+- ❌ 在同一個分支裡同時改店家資料和程式碼（會讓自動合併失效，見第 12 節）
+- ❌ 修改 `.github/workflows/auto-merge.yml`（除非我明確要求）
 - ❌ 引入框架、npm 執行期套件、後端或需要 API Key 的服務
 - ❌ 使用網路上的店家照片
 - ❌ 在 JS 裡寫死店家、縣市或標籤資料（一律從 `FM.data` 讀取）
@@ -433,6 +436,20 @@ Footer：© · 資料更新時間
 
 ## 12. 常見任務流程
 
+### 🤖 自動合併規則（`.github/workflows/auto-merge.yml`）
+
+Claude Code 把修改推到 `claude/` 開頭的分支後，GitHub Actions 會自動處理：
+
+| 這次修改的檔案 | 結果 |
+|---|---|
+| **只有** `_shops/*.md`、`assets/images/shops/**`、`_data/tags.json` | 檢查格式 → 自動合併到 `main` → 刪除分支 → 網站 1～2 分鐘後更新 |
+| 包含其他任何檔案（程式、樣式、本文件…） | **不自動合併**，等我到 GitHub 手動審核 |
+| 店家檔 YAML 寫錯、`tags.json` 不是正確的 JSON | 合併失敗，在 Actions 頁面顯示紅色 ✗ |
+
+所以：
+- 新增或修改店家時，**只動上面那三種檔案**。完成後 push 就好，**不需要開 PR**。
+- 程式或樣式的修改要**另外開一個分支**，並提醒我需要手動合併。
+
 ### ✅ 任務 A：新增一間店（最常見）
 
 我通常會說：「新增：XX 麵店，臺南市中西區民族路二段 1 號，宵夜，乾麵很好吃，4 顆星，一碗 60 元。」
@@ -443,7 +460,7 @@ Footer：© · 資料更新時間
 4. 檢查標籤是否都在 `tags.json`，沒有的話依第 6 節新增。
 5. 有照片的話，依第 10 節處理後放進 `assets/images/shops/<slug>/`。
 6. 有 Node 環境時，執行 `npm run check`，確認沒有警告。
-7. commit：`feat(shop): 新增 臺南中西區 XX麵店`
+7. commit：`feat(shop): 新增 臺南中西區 XX麵店`，然後 push（不用開 PR，會自動合併）。
 8. 回覆我：新增的檔案清單＋還空著的欄位。
 
 ### ✏️ 任務 B：更新店家資料
@@ -485,4 +502,5 @@ Footer：© · 資料更新時間
 | 日期 | 內容 |
 |---|---|
 | 2026-11-10 | 初版：資料格式、標籤系統、頁面結構、地圖縮放、localStorage 規則 |
+| 2026-11-11 | 新增自動合併流程：只改店家資料的分支會自動合併到 main |
 | 2026-11-10 | 所有欄位改為選填；縣市和區改由地址自動判斷；改成單頁 hash 路由；新增備用底圖、`coords_approx`、`npm run check`／`preview`；加入兩間範例店 |
