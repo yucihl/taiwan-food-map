@@ -1,0 +1,78 @@
+# 自動合併 Claude 的店家更新
+# Claude Code 把修改推到 claude/ 開頭的分支時：
+#   1. 只改到店家資料（_shops/、店家照片、_data/tags.json）→ 檢查格式 → 自動合併到 main → 重新建置網站
+#   2. 有改到其他檔案（程式、樣式、AGENTS.md…）→ 不自動合併，留給我手動審核
+name: 自動合併店家更新
+ 
+on:
+  push:
+    branches: ['claude/**']
+ 
+permissions:
+  contents: write
+  pages: write
+ 
+concurrency:
+  group: auto-merge
+  cancel-in-progress: false
+ 
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+ 
+      - name: 確認只改到店家資料
+        id: scope
+        run: |
+          git fetch origin main
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          echo "這次修改的檔案："
+          echo "$CHANGED"
+          if [ -z "$CHANGED" ]; then
+            echo "沒有任何修改，略過。"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          OTHER=$(echo "$CHANGED" | grep -vE '^(_shops/[^/]+\.md|assets/images/shops/.+|_data/tags\.json)$' || true)
+          if [ -n "$OTHER" ]; then
+            echo "::warning::有改到店家資料以外的檔案，不自動合併，請到 GitHub 手動審核：$OTHER"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+ 
+      - uses: actions/setup-node@v4
+        if: steps.scope.outputs.ok == 'true'
+        with:
+          node-version: 20
+ 
+      - name: 檢查店家格式
+        if: steps.scope.outputs.ok == 'true'
+        run: |
+          npm install --no-audit --no-fund
+          node -e "JSON.parse(require('fs').readFileSync('_data/tags.json','utf8'))" || { echo '::error::_data/tags.json 不是正確的 JSON'; exit 1; }
+          node scripts/build-preview.mjs --check | tee check.log
+          if grep -qE 'YAML 格式錯誤|找不到 front matter' check.log; then
+            echo '::error::店家檔格式有錯，不自動合併'
+            exit 1
+          fi
+ 
+      - name: 合併到 main
+        if: steps.scope.outputs.ok == 'true'
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B main origin/main
+          git merge --no-ff "origin/${BRANCH}" -m "自動合併：${BRANCH}"
+          git push origin main
+          git push origin --delete "${BRANCH}" || true
+ 
+      - name: 重新建置網站
+        if: steps.scope.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "GitHub Pages 會自行建置"
