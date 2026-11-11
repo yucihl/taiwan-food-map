@@ -1,0 +1,11 @@
+[
+  { "name": "早餐", "emoji": "🍳", "color": "#E3A23B", "group": "時段", "preset": true },
+  { "name": "午餐", "emoji": "🍱", "color": "#D9822B", "group": "時段", "preset": true },
+  { "name": "晚餐", "emoji": "🍲", "color": "#B5543C", "group": "時段", "preset": true },
+  { "name": "宵夜", "emoji": "🌙", "color": "#7A6290", "group": "時段", "preset": true },
+  { "name": "飲料", "emoji": "🧋", "color": "#8A9A5B", "group": "類型", "preset": true },
+  { "name": "甜點", "emoji": "🍰", "color": "#D48A9C", "group": "類型", "preset": true },
+  { "name": "小吃", "emoji": "🥟", "color": "#C4884F", "group": "類型", "preset": true },
+  { "name": "牛肉麵", "emoji": "🍜", "color": "#A8552F", "group": "類型", "preset": false },
+  { "name": "拉麵", "emoji": "🍥", "color": "#C9733A", "group": "類型", "preset": false }
+]

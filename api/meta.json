@@ -1,0 +1,9 @@
+---
+layout: null
+---
+{
+  "title": {{ site.title | jsonify }},
+  "built": {{ site.time | date: "%Y-%m-%d %H:%M" | jsonify }},
+  "tags": {{ site.data.tags | jsonify }},
+  "regions": {{ site.data.regions.regions | jsonify }}
+}

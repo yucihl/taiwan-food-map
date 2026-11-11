@@ -1,0 +1,26 @@
+title: 我的台灣美食圖鑑
+description: 一個人吃遍台灣的美食筆記本
+lang: zh-Hant-TW
+timezone: Asia/Taipei
+
+# GitHub Pages 專案網址是 https://<帳號>.github.io/<repo>/，baseurl 要填 /<repo>
+# 如果 repo 名稱不是 taiwan-food-map，記得改這裡
+baseurl: /taiwan-food-map
+url: ""
+
+collections:
+  shops:
+    output: false        # 店家頁由前端 index.html#<slug> 顯示，不另外產生 HTML
+
+markdown: kramdown
+
+exclude:
+  - AGENTS.md
+  - CLAUDE.md
+  - README.md
+  - package.json
+  - package-lock.json
+  - node_modules
+  - scripts
+  - preview
+  - _templates
