@@ -6,5 +6,7 @@ lat: 25.04395
 lng: 121.53225
 coords_approx: true
 tags: [牛肉麵]
-updated: 2026-11-10
+dishes:
+  - name: 紅燒牛肉麵
+updated: 2026-11-11
 ---
