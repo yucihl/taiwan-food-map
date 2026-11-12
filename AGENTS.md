@@ -532,5 +532,6 @@ Claude Code 把修改推到 `claude/` 開頭的分支後，GitHub Actions 會自
 - **標籤**：`_data/tags.json` 的 `name_en`（見第 6 節）。
 - **店家內容**：`name_en`、餐點的 `name_en`、正文 `<!-- en -->` 下面的英文心得（見第 4 節）。英文模式下有填就顯示英文，沒填就顯示中文。地址、分店名、營業時間備註只有中文。
 - 程式裡取用顯示名稱的工具：`FM.i18n.tagName(tag)`、`FM.i18n.groupName(group)`、`FM.i18n.placeName(region/city/district)`、`FM.place.parts(shop)`、`FM.dishName(dish)`、`shop.displayName`、`shop.bodyHtml`。
+- 英文字典一律用直引號 `'` `"`：中文字型會把 ’ “ ” 畫成全形，看起來有空隙。
 - 不使用任何線上翻譯服務；英文內容都由我提供，或由 AI 翻譯後寫進檔案並告訴我。
 - 切換語言時，`app.js` 會呼叫各頁面的 `reset()` 再重畫目前這一頁。新增頁面時，如果頁面有快取的畫面，也要提供 `reset()`。
