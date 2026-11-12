@@ -4,8 +4,10 @@
   const FM = (window.FM = window.FM || {});
   const { h, starsHtml, priceText, tagChipHtml, PRICE, debounce, toast } = FM.util;
   const F = FM.filters;
+  const t = (k, v) => FM.t(k, v);
+  const { placeName, tagName, groupName } = FM.i18n;
 
-  let root, st, built = false, lastLocKey = '';
+  let root, st, built = false, lastLocKey = '', docBound = false, keepView = null;
   const $ = (sel) => root.querySelector(sel);
 
   /* —— 狀態 —— */
@@ -29,54 +31,54 @@
     root.innerHTML = `
       <div class="home-top">
         <div class="intro">
-          <h1>我的台灣美食圖鑑</h1>
-          <p class="muted">目前收錄 <b>${shops.length}</b> 間店，分布在 <b>${cityCount}</b> 個縣市。慢慢吃，慢慢記 🍚</p>
+          <h1>${h(t('site.title'))}</h1>
+          <p class="muted">${t('home.stats', { shops: shops.length, cities: cityCount })}</p>
         </div>
         <div class="search" id="search">
           <span class="search-icon" aria-hidden="true">🔍</span>
           <input id="q" type="search" autocomplete="off" enterkeyhint="search"
-            placeholder="搜尋店名、地名、餐點或標籤（例：中正區、拉麵）"
-            role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" aria-label="搜尋">
+            placeholder="${h(t('search.placeholder'))}"
+            role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" aria-label="${h(t('search.label'))}">
           <div id="suggest" class="suggest" role="listbox" hidden></div>
         </div>
       </div>
 
-      <section class="filters card" aria-label="篩選">
+      <section class="filters card" aria-label="${h(t('filters.label'))}">
         <div class="f-row">
-          <span class="f-label">區域</span>
-          <div class="chips" id="f-region" role="group" aria-label="區域"></div>
+          <span class="f-label">${h(t('filters.region'))}</span>
+          <div class="chips" id="f-region" role="group" aria-label="${h(t('filters.region'))}"></div>
         </div>
         <div class="f-row">
-          <span class="f-label">縣市・區</span>
+          <span class="f-label">${h(t('filters.cityDistrict'))}</span>
           <div class="selects">
-            <select id="f-city" aria-label="縣市"></select>
-            <select id="f-district" aria-label="鄉鎮市區"></select>
+            <select id="f-city" aria-label="${h(t('filters.city'))}"></select>
+            <select id="f-district" aria-label="${h(t('filters.district'))}"></select>
           </div>
         </div>
-        <button type="button" class="f-more" id="f-more" aria-expanded="false" aria-controls="f-extra">更多篩選 ▾</button>
+        <button type="button" class="f-more" id="f-more" aria-expanded="false" aria-controls="f-extra">${h(t('filters.more'))}</button>
         <div class="f-extra" id="f-extra">
           <div class="f-row">
-            <span class="f-label">標籤</span>
+            <span class="f-label">${h(t('filters.tags'))}</span>
             <div id="f-tags" class="tag-groups"></div>
           </div>
           <div class="f-row">
-            <span class="f-label">價位</span>
-            <div class="chips" id="f-price" role="group" aria-label="價位"></div>
-            <label class="switch"><input type="checkbox" id="f-closed"><span></span>顯示已歇業</label>
+            <span class="f-label">${h(t('filters.price'))}</span>
+            <div class="chips" id="f-price" role="group" aria-label="${h(t('filters.price'))}"></div>
+            <label class="switch"><input type="checkbox" id="f-closed"><span></span>${h(t('filters.showClosed'))}</label>
           </div>
         </div>
         <div class="f-active" id="f-active" hidden></div>
       </section>
 
-      <section class="map-shell card" aria-label="地圖">
+      <section class="map-shell card" aria-label="${h(t('map.label'))}">
         <div id="home-map" class="map"></div>
-        <p class="map-hint muted">滾輪或雙指縮放；放大到街道會看到店名和標籤</p>
+        <p class="map-hint muted">${h(t('map.hint'))}</p>
       </section>
 
-      <section aria-label="店家列表">
+      <section aria-label="${h(t('list.label'))}">
         <div class="list-head">
-          <h2>共 <b id="count">0</b> 間</h2>
-          <label class="sort">排序
+          <h2>${t('list.count', { n: 0 })}</h2>
+          <label class="sort">${h(t('list.sort'))}
             <select id="f-sort">${Object.entries(F.SORTS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
           </label>
         </div>
@@ -100,32 +102,32 @@
     const total = [...counts.values()].reduce((a, b) => a + b, 0);
     const btn = (id, name, n) =>
       `<button type="button" class="chip ${st.region === id ? 'on' : ''}" data-region="${id}" aria-pressed="${st.region === id}">${name}<span class="n">${n}</span></button>`;
-    $('#f-region').innerHTML = btn('', '全部', total) +
-      FM.data.index.regions.map((r) => btn(r.id, r.name, counts.get(r.id) || 0)).join('');
+    $('#f-region').innerHTML = btn('', h(t('filters.all')), total) +
+      FM.data.index.regions.map((r) => btn(r.id, h(placeName(r)), counts.get(r.id) || 0)).join('');
   }
 
   function renderSelects() {
     const { regions, cities } = FM.data.index;
     const cityCounts = countBy((s) => s.city);
-    const opt = (v, label, n, sel) => `<option value="${h(v)}" ${sel ? 'selected' : ''}>${h(label)}${n !== undefined ? `（${n}）` : ''}</option>`;
+    const opt = (v, label, n, sel) => `<option value="${h(v)}" ${sel ? 'selected' : ''}>${h(label)}${n !== undefined ? h(t('filters.count', { n })) : ''}</option>`;
     const list = st.region ? regions.filter((r) => r.id === st.region) : regions;
-    let html = opt('', '全部縣市', undefined, !st.city);
+    let html = opt('', t('filters.allCities'), undefined, !st.city);
     for (const r of list) {
-      html += `<optgroup label="${h(r.name)}">` +
-        r.cities.map((c) => opt(c.name, c.name, cityCounts.get(c.name) || 0, st.city === c.name)).join('') + '</optgroup>';
+      html += `<optgroup label="${h(placeName(r))}">` +
+        r.cities.map((c) => opt(c.name, placeName(c), cityCounts.get(c.name) || 0, st.city === c.name)).join('') + '</optgroup>';
     }
     $('#f-city').innerHTML = html;
 
     const dsel = $('#f-district');
     if (!st.city) {
-      dsel.innerHTML = opt('', '先選縣市', undefined, true);
+      dsel.innerHTML = opt('', t('filters.pickCity'), undefined, true);
       dsel.disabled = true;
     } else {
       const dCounts = countBy((s) => (s.city === st.city ? s.district : null));
       const ds = cities.get(st.city).city.districts.slice()
         .sort((a, b) => (dCounts.get(b.name) || 0) - (dCounts.get(a.name) || 0));
-      dsel.innerHTML = opt('', '全部區域', undefined, !st.district) +
-        ds.map((d) => opt(d.name, d.name, dCounts.get(d.name) || 0, st.district === d.name)).join('');
+      dsel.innerHTML = opt('', t('filters.allDistricts'), undefined, !st.district) +
+        ds.map((d) => opt(d.name, placeName(d), dCounts.get(d.name) || 0, st.district === d.name)).join('');
       dsel.disabled = false;
     }
   }
@@ -144,18 +146,18 @@
       if (!g) groups.push((g = { name: t.group || '其他', tags: [] }));
       g.tags.push(t);
     }
-    $('#f-tags').innerHTML = groups.map((g) => `<div class="tag-group"><span class="tg-name">${h(g.name)}</span><div class="chips">` +
-      g.tags.map((t) => {
-        const on = st.tags.includes(t.name);
-        return `<button type="button" class="chip tag ${on ? 'on' : ''}" style="--tag:${h(t.color)}" data-tag="${h(t.name)}" aria-pressed="${on}">` +
-          `<span aria-hidden="true">${h(t.emoji)}</span>${h(t.name)}${counts.get(t.name) ? `<span class="n">${counts.get(t.name)}</span>` : ''}</button>`;
+    $('#f-tags').innerHTML = groups.map((g) => `<div class="tag-group"><span class="tg-name">${h(groupName(g.name))}</span><div class="chips">` +
+      g.tags.map((tg) => {
+        const on = st.tags.includes(tg.name);
+        return `<button type="button" class="chip tag ${on ? 'on' : ''}" style="--tag:${h(tg.color)}" data-tag="${h(tg.name)}" aria-pressed="${on}">` +
+          `<span aria-hidden="true">${h(tg.emoji)}</span>${h(tagName(tg))}${counts.get(tg.name) ? `<span class="n">${counts.get(tg.name)}</span>` : ''}</button>`;
       }).join('') + '</div></div>').join('');
   }
 
   function renderPrice() {
     $('#f-price').innerHTML = Object.entries(PRICE).map(([lv, p]) => {
       const on = st.prices.includes(Number(lv));
-      return `<button type="button" class="chip ${on ? 'on' : ''}" data-price="${lv}" aria-pressed="${on}" title="每人 ${p.text}">${p.sign}<span class="sub">${p.text.replace('NT$', '')}</span></button>`;
+      return `<button type="button" class="chip ${on ? 'on' : ''}" data-price="${lv}" aria-pressed="${on}" title="${h(t('price.per', { text: p.text }))}">${p.sign}<span class="sub">${h(p.text.replace('NT$', ''))}</span></button>`;
     }).join('');
     $('#f-closed').checked = st.showClosed;
     $('#f-sort').value = st.sort;
@@ -164,19 +166,19 @@
 
   function renderActive() {
     const items = [];
-    const regionName = st.region && FM.data.index.regions.find((r) => r.id === st.region).name;
-    if (st.q) items.push(['q', `🔍「${st.q}」`]);
+    const regionName = st.region && placeName(FM.data.index.regions.find((r) => r.id === st.region));
+    if (st.q) items.push(['q', t('filters.query', { q: st.q })]);
     if (regionName && !st.city) items.push(['region', regionName]);
-    if (st.city) items.push(['city', st.city]);
-    if (st.district) items.push(['district', st.district]);
-    st.tags.forEach((t) => items.push(['tag:' + t, `${FM.data.tagObj(t).emoji} ${t}`]));
+    if (st.city) items.push(['city', FM.place.city(st.city)]);
+    if (st.district) items.push(['district', FM.place.district(st.city, st.district)]);
+    st.tags.forEach((tg) => { const o = FM.data.tagObj(tg); items.push(['tag:' + tg, `${o.emoji} ${tagName(o)}`]); });
     st.prices.forEach((p) => items.push(['price:' + p, PRICE[p].sign]));
-    if (st.showClosed) items.push(['closed', '含已歇業']);
+    if (st.showClosed) items.push(['closed', t('filters.withClosed')]);
     const el = $('#f-active');
     el.hidden = !items.length;
     el.innerHTML = items.length
-      ? '<span class="f-label">已選</span>' + items.map(([k, label]) => `<button type="button" class="chip removable" data-remove="${h(k)}">${h(label)} <span aria-hidden="true">×</span><span class="sr-only">移除</span></button>`).join('') +
-        '<button type="button" class="link-btn" data-remove="all">清除全部</button>'
+      ? `<span class="f-label">${h(t('filters.selected'))}</span>` + items.map(([k, label]) => `<button type="button" class="chip removable" data-remove="${h(k)}">${h(label)} <span aria-hidden="true">×</span><span class="sr-only">${h(t('filters.remove'))}</span></button>`).join('') +
+        `<button type="button" class="link-btn" data-remove="all">${h(t('filters.clearAll'))}</button>`
       : '';
   }
 
@@ -185,12 +187,12 @@
     const cover = s.photos[0]
       ? `<img loading="lazy" src="${h(FM.photoUrl(s, s.photos[0].file))}" alt="${h(s.photos[0].alt || s.displayName)}">`
       : `<div class="ph" style="--c:${h(s.primaryTag.color)}"><span>${h(s.primaryTag.emoji)}</span></div>`;
-    const place = [s.city, s.district].filter(Boolean).join('・') || '地點未記錄';
+    const place = FM.place.parts(s).join(t('sep.place')) || t('card.noPlace');
     const price = priceText(s);
     const badges = [];
-    if (s.status === 'closed') badges.push('<span class="badge gray">已歇業</span>');
-    if (s.status === 'temp-closed') badges.push('<span class="badge gray">暫停營業</span>');
-    if (!s.hasCoords) badges.push('<span class="badge warn">📍 缺座標</span>');
+    if (s.status === 'closed') badges.push(`<span class="badge gray">${h(t('badge.closed'))}</span>`);
+    if (s.status === 'temp-closed') badges.push(`<span class="badge gray">${h(t('badge.tempClosed'))}</span>`);
+    if (!s.hasCoords) badges.push(`<span class="badge warn">${h(t('badge.noCoords'))}</span>`);
     return `<a class="shop-card ${s.status === 'closed' ? 'is-closed' : ''}" href="#${h(s.slug)}" data-slug="${h(s.slug)}">
       <div class="cover">${cover}${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</div>
       <div class="body">
@@ -205,8 +207,8 @@
     $('#count').textContent = list.length;
     $('#list').innerHTML = list.length
       ? list.map(cardHtml).join('')
-      : `<div class="empty card"><p class="big">🍂</p><p>沒有符合條件的店家</p>
-          <button type="button" class="btn" data-remove="all">清除篩選</button></div>`;
+      : `<div class="empty card"><p class="big">🍂</p><p>${h(t('list.empty'))}</p>
+          <button type="button" class="btn" data-remove="all">${h(t('list.clear'))}</button></div>`;
   }
 
   function refresh(opts) {
@@ -235,14 +237,14 @@
     let html = '';
     let i = 0;
     if (places.length) {
-      html += '<div class="sg-head">📍 地點</div>' + places.map((p) =>
+      html += `<div class="sg-head">${h(t('search.places'))}</div>` + places.map((p) =>
         `<div class="sg-item" role="option" id="sg-${i}" data-i="${i++}"><b>${h(p.label)}</b><span class="muted">${h(p.sub)}</span></div>`).join('');
     }
     if (shops.length) {
-      html += '<div class="sg-head">🍽️ 店家</div>' + shops.map((s) =>
-        `<div class="sg-item" role="option" id="sg-${i}" data-i="${i++}"><b>${h(s.primaryTag.emoji)} ${h(s.displayName)}</b><span class="muted">${h([s.city, s.district].filter(Boolean).join(' '))}</span></div>`).join('');
+      html += `<div class="sg-head">${h(t('search.shops'))}</div>` + shops.map((s) =>
+        `<div class="sg-item" role="option" id="sg-${i}" data-i="${i++}"><b>${h(s.primaryTag.emoji)} ${h(s.displayName)}</b><span class="muted">${h(FM.place.parts(s).join(t('sep.placeLong')))}</span></div>`).join('');
     }
-    if (!html) html = `<div class="sg-empty muted">找不到「${h(q)}」，按 Enter 用關鍵字篩選</div>`;
+    if (!html) html = `<div class="sg-empty muted">${h(t('search.none', { q }))}</div>`;
     box.innerHTML = html;
     box.hidden = false;
     $('#q').setAttribute('aria-expanded', 'true');
@@ -281,7 +283,7 @@
         const open = !$('.filters').classList.contains('expanded');
         $('.filters').classList.toggle('expanded', open);
         t.setAttribute('aria-expanded', open);
-        t.textContent = open ? '收起篩選 ▴' : '更多篩選 ▾';
+        t.textContent = open ? FM.t('filters.less') : FM.t('filters.more');
       } else if (t.dataset.region !== undefined) {
         setState({ region: t.dataset.region, city: '', district: '' });
       } else if (t.dataset.tag !== undefined) {
@@ -328,9 +330,13 @@
       }
     });
     q.addEventListener('search', () => { if (!q.value) setState({ q: '' }); });
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#search')) $('#suggest').hidden = true;
-    });
+    if (!docBound) {
+      docBound = true;
+      document.addEventListener('click', (e) => {
+        const box = root && root.querySelector('#suggest');
+        if (box && !e.target.closest('#search')) box.hidden = true;
+      });
+    }
 
     const list = $('#list');
     list.addEventListener('mouseover', (e) => {
@@ -349,10 +355,13 @@
     if (!built) {
       built = true;
       skeleton();
-      const fromUrl = F.readUrl();
-      const stored = FM.storage.load('filters', null);
+      // 切換語言後重建：沿用原本的篩選和地圖位置，不顯示「已帶入」提示
+      const rebuilding = !!keepView || !!st;
+      const fromUrl = rebuilding ? null : F.readUrl();
+      const stored = rebuilding ? st : FM.storage.load('filters', null);
       st = F.sanitize(fromUrl || stored || F.defaults());
-      const view = !fromUrl ? FM.storage.load('mapView', null) : null;
+      const view = keepView || (!fromUrl ? FM.storage.load('mapView', null) : null);
+      keepView = null;
       const validView = view && Number.isFinite(view.lat) && Number.isFinite(view.lng) && Number.isFinite(view.zoom) ? view : null;
       FM.map.createHome($('#home-map'), {
         view: validView,
@@ -361,8 +370,8 @@
       lastLocKey = validView ? locKey(st) : '';
       bind();
       refresh();
-      if (!fromUrl && stored && !F.isDefault(st)) {
-        toast('已帶入上次的篩選條件 <button type="button" class="link-btn" id="reset-filters">重設</button>', 4000);
+      if (!rebuilding && !fromUrl && stored && !F.isDefault(st)) {
+        toast(`${h(t('filters.restored'))} <button type="button" class="link-btn" id="reset-filters">${h(t('filters.reset'))}</button>`, 4000);
         const btn = document.getElementById('reset-filters');
         if (btn) btn.addEventListener('click', () => { $('#q').value = ''; setState(F.defaults()); });
       }
@@ -370,6 +379,15 @@
     FM.map.invalidate();
   }
 
+  /** 切換語言時呼叫：先存好目前的篩選和地圖位置，拆掉畫面，下次 show() 會用新語言重建 */
+  function reset() {
+    if (!built) return;
+    FM.storage.save('filters', st);
+    keepView = FM.map.destroyHome();
+    root.innerHTML = '';
+    built = false;
+  }
+
   FM.views = FM.views || {};
-  FM.views.home = { show };
+  FM.views.home = { show, reset };
 })();

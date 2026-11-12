@@ -3,6 +3,7 @@
 # 檔名就是 slug：_shops/<縣市英文>-<區英文>-<店名英文或拼音>.md
 
 name:                          # 店名
+name_en:                       # 英文店名（選填；英文模式下顯示，沒填就顯示中文）
 branch:                        # 分店名
 status: open                   # open 營業中｜temp-closed 暫停營業｜closed 已歇業（省略 = open）
 
@@ -38,6 +39,7 @@ hours_checked:                 # YYYY-MM-DD
 # —— 推薦餐點 ——
 dishes:
   # - name: 招牌拉麵
+  #   name_en: Signature Ramen   # 選填，英文模式下顯示
   #   price: 280
   #   note: 一句話
 
@@ -55,3 +57,7 @@ links:
 ---
 
 （這裡寫心得，可以留空）
+
+<!-- en -->
+
+(English notes go below the line above. Optional — delete the line and this paragraph if you don't need them.)

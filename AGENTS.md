@@ -30,6 +30,7 @@
 | 前端 | 原生 HTML／CSS／JavaScript。**一般 `<script>`，不是 ES Modules**；所有模組掛在 `window.FM` 底下 |
 | 字型 | Google Fonts：`Huninn`（標題，粉圓體）、`Noto Sans TC`（內文） |
 | 記憶 | `localStorage`（只透過 `assets/js/storage.js`） |
+| 語言 | 中文／English 切換（`assets/js/i18n.js`，見第 15 節）。不使用任何線上翻譯服務 |
 | 開發工具 | Node（選用）：`npm run check` 檢查店家檔、`npm run preview` 產生單檔預覽 |
 
 **禁止**在沒問過我的情況下引入 React、Vue、Tailwind、打包工具、後端服務或需要 API Key 的服務。
@@ -82,6 +83,7 @@ _data/tags.json、_data/regions.json ──▶ api/meta.json ──────�
 │   ├── js/
 │   │   ├── util.js            ← 共用工具：跳脫 HTML、台/臺正規化、星星、價位、營業中判斷
 │   │   ├── storage.js         ← 唯一可以碰 localStorage 的檔案
+│   │   ├── i18n.js            ← 中文／英文介面字典＋FM.t()、語言切換（見第 15 節）
 │   │   ├── data.js            ← 讀取 api/*.json，補預設值、從地址推算縣市與區
 │   │   ├── filters.js         ← 篩選、排序、搜尋建議、網址參數
 │   │   ├── map.js             ← 地圖、標記樣式、縮放行為、店家頁小地圖
@@ -135,6 +137,7 @@ updated: 2026-11-10
 ```markdown
 ---
 name: 丸舢拉麵                 # 店名（沒寫會顯示「未命名店家」）
+name_en: Wanshan Ramen         # 英文店名（英文模式下顯示；沒填就顯示中文）
 branch: 八德店                 # 分店名
 status: open                   # open（預設）｜temp-closed 暫停營業｜closed 已歇業
 
@@ -165,6 +168,7 @@ hours_checked: 2026-11-10
 
 dishes:
   - name: 豚骨拉麵
+    name_en: Tonkotsu Ramen    # 選填，英文模式下顯示
     price: 260
     note: 湯頭濃但不死鹹
   - name: 溏心蛋
@@ -181,6 +185,10 @@ links:
 ---
 
 湯頭偏濃，第一口就有很重的豬骨香……（可以用 Markdown）
+
+<!-- en -->
+
+Rich broth with a strong pork-bone aroma from the first sip… (optional English notes)
 ```
 
 ### 4.3 欄位細節
@@ -193,7 +201,9 @@ links:
 | `status` | 歇業的店**不要刪除**，改成 `closed`。地圖上會變成灰色，列表預設隱藏 |
 | `tags` | 每個標籤都要在 `tags.json` 登記過（見第 6 節）。標籤名稱不要包含 emoji |
 | `hours` | 格式見 4.4。只填知道的那幾天就好 |
-| `dishes` | `price` 是整數（新台幣），不知道就省略 |
+| `dishes` | `price` 是整數（新台幣），不知道就省略；`name_en` 是選填的英文餐點名稱 |
+| `name_en` | 選填的英文店名。有官方英文名就用官方的；我沒提供、也查不到官方英文名時就省略，**不要自己翻譯店名** |
+| 英文心得 `body_en` | 寫在正文裡：中文心得在上，接著一行 `<!-- en -->`，下面是英文心得（也可以用 Markdown）。不需要英文版就不要加這一行。英文心得只能翻譯我說過的內容，不能加入新的感受 |
 | `photos` | 檔案要真的存在於 `assets/images/shops/<slug>/` |
 | 日期 | 一律寫 `YYYY-MM-DD`，不加引號 |
 
@@ -231,22 +241,23 @@ links:
 | 3 | `$$$` | NT$301–600 |
 | 4 | `$$$$` | NT$600 以上 |
 
-這兩張表同時寫在 `assets/js/util.js`（`RATING`、`PRICE`）。改標準時，兩邊要一起改。
+這兩張表的文字（中英各一份）寫在 `assets/js/i18n.js` 的 `rating.*`、`price.*`，`assets/js/util.js` 的 `RATING`、`PRICE` 從那裡讀取。改標準時，本文件和 `i18n.js` 的中英文都要一起改。
 
 ---
 
 ## 6. 分類標籤系統（`_data/tags.json`）
 
 ```json
-{ "name": "拉麵", "emoji": "🍥", "color": "#C9733A", "group": "類型", "preset": false }
+{ "name": "拉麵", "name_en": "Ramen", "emoji": "🍥", "color": "#C9733A", "group": "類型", "preset": false }
 ```
 
 | 欄位 | 說明 |
 |---|---|
 | `name` | 標籤文字，不含 emoji |
+| `name_en` | 英文名稱（**必填**），英文模式下的篩選列、店家卡片、店家頁、地圖標記都會顯示這個 |
 | `emoji` | 一個 emoji，地圖標記和標籤膠囊都會顯示 |
 | `color` | 從第 7 節的「標籤色票」挑一個 |
-| `group` | `時段`／`類型`／`特色`／`其他`。首頁篩選器會依照這個分組 |
+| `group` | `時段`／`類型`／`特色`／`其他`。首頁篩選器會依照這個分組（英文：Time／Type／Features／Other，寫在 `i18n.js` 的 `group.*`） |
 | `preset` | `true` = 預設標籤 |
 
 ### 規則
@@ -257,6 +268,8 @@ links:
 4. 我沒指定 emoji 時，AI 可以挑一個最貼切的，但要在回覆裡告訴我選了哪一個。
 5. 店家的**第一個標籤 = 主標籤**，決定地圖標記的 emoji 和顏色。
 6. 店家用了沒登記的標籤時，網站仍會顯示（預設 🏷️），但 `npm run check` 會發出警告，應該補登記。
+7. **新增標籤時一定要附 `name_en`。** 我沒提供英文名稱時，AI 先自己翻譯，並在回覆裡告訴我用了哪個英文名稱。缺少 `name_en` 時 `npm run check` 會發出警告。
+8. 搜尋時中文和英文標籤名稱都找得到（例如打 `Ramen` 或「拉麵」都能找到拉麵店）。
 
 ---
 
@@ -352,7 +365,8 @@ Footer：© · 資料更新時間
 ### 8.3 新增頁 `#add`
 
 - 表單欄位和第 4 節一一對應，全部選填。
-- 按「產生 Markdown」後輸出三樣東西：檔案路徑、Markdown 內容、可以直接貼給 AI 的訊息。如果有新標籤，另外附上要加進 `tags.json` 的 JSON。
+- 按「產生 Markdown」後輸出三樣東西：檔案路徑、Markdown 內容、可以直接貼給 AI 的訊息。如果有新標籤，另外附上要加進 `tags.json` 的 JSON（含 `name_en`，新標籤欄位旁邊有「英文名稱」輸入框）。
+- 也可以填英文店名、餐點英文名稱和英文心得（會輸出到 `<!-- en -->` 下面）。
 - 輸入地址後，會即時顯示判斷出的縣市和區。
 - 緯度欄可以直接貼上 Google 地圖複製的「25.04425, 121.53060」，會自動拆成緯度和經度。
 - 表單內容會自動存成草稿，下次打開時帶回。
@@ -376,6 +390,7 @@ Footer：© · 資料更新時間
 | `foodmap:v1:filters` | 區域、縣市、區、標籤、價位、搜尋字、排序、是否顯示已歇業 |
 | `foodmap:v1:mapView` | 地圖的中心點和縮放等級 `{ lat, lng, zoom }` |
 | `foodmap:v1:addDraft` | 新增表單的草稿 |
+| `foodmap:v1:lang` | 介面語言：`zh` 或 `en`。沒有存過時依瀏覽器語言決定（`zh*` → 中文，其他 → 英文） |
 | `foodmap:v1:savedAt` | 最後儲存時間 |
 
 ### 規則
@@ -430,6 +445,7 @@ Footer：© · 資料更新時間
 - 每支 JS 都用 IIFE 包起來，對外只掛 `window.FM.<名稱>`；新增 JS 檔時，要加進 `index.html` 底部正確的載入位置。
 - 插入 HTML 的文字一律經過 `FM.util.h()` 跳脫。只有店家心得 `body` 例外，它是 Jekyll 從我的 Markdown 轉出來的。
 - 使用 `const`／`let`；函式名稱用 camelCase，CSS class 用 kebab-case；註解用中文。
+- **任何新的介面文字都要中英各一份**：寫進 `assets/js/i18n.js` 的 `zh` 和 `en` 字典，程式裡用 `FM.t('key')` 取用，不要把文字寫死在 HTML 或 JS 裡（見第 15 節）。
 - 新功能要在寬度 390px 和 1280px 兩種畫面都檢查過。
 
 ---
@@ -490,7 +506,7 @@ Claude Code 把修改推到 `claude/` 開頭的分支後，GitHub Actions 會自
 - [ ] 檔名只有小寫英文、數字和 `-`，縣市和區的 slug 來自 `regions.json`
 - [ ] YAML 用 2 個空格縮排，沒有 Tab；`zip` 有加引號
 - [ ] `rating` 是 1–5 的整數、`price_level` 是 1–4 的整數（或省略）
-- [ ] 所有標籤都已登記在 `tags.json`，而且標籤名稱不含 emoji
+- [ ] 所有標籤都已登記在 `tags.json`，而且標籤名稱不含 emoji；每個標籤都有 `name_en`
 - [ ] 座標在台灣範圍內（緯度 21.7–26.6、經度 117.8–122.6）；估計值有加 `coords_approx: true`
 - [ ] `photos` 列出的檔案都存在，而且都有 `alt`
 - [ ] `updated` 是今天
@@ -503,4 +519,18 @@ Claude Code 把修改推到 `claude/` 開頭的分支後，GitHub Actions 會自
 |---|---|
 | 2026-11-10 | 初版：資料格式、標籤系統、頁面結構、地圖縮放、localStorage 規則 |
 | 2026-11-11 | 新增自動合併流程：只改店家資料的分支會自動合併到 main |
+| 2026-11-12 | 新增中文／English 語言切換：`i18n.js`、`name_en`／`body_en`（`<!-- en -->`）／餐點 `name_en`、標籤和地名的 `name_en`、`foodmap:v1:lang`（第 15 節） |
 | 2026-11-10 | 所有欄位改為選填；縣市和區改由地址自動判斷；改成單頁 hash 路由；新增備用底圖、`coords_approx`、`npm run check`／`preview`；加入兩間範例店 |
+
+---
+
+## 15. 多語言（中文／English）
+
+- 導覽列的「中 / EN」按鈕切換介面語言，所有頁面都看得到。選的語言存在 `foodmap:v1:lang`，`<html lang>` 也會跟著切換（`zh-Hant-TW`／`en`）。
+- **介面文字**：全部寫在 `assets/js/i18n.js` 的 `zh`、`en` 兩份字典，其他檔案一律用 `FM.t('key')` 取用（可以帶參數：`FM.t('list.count', { n: 3 })`）。英文缺字時會退回中文。`index.html` 的固定文字用 `data-i18n="key"` 標記，由 `app.js` 填入。
+- **地名**：`_data/regions.json` 的每個區域、縣市、區都有 `name_en`（由 `scripts/gen-regions.mjs` 從 taiwan-towns 的 `COUNTYENG`／`TOWNENG` 產生）。英文模式下用英文顯示，搜尋時中英文都能找到（例：`Taipei`、`Zhongzheng`）。
+- **標籤**：`_data/tags.json` 的 `name_en`（見第 6 節）。
+- **店家內容**：`name_en`、餐點的 `name_en`、正文 `<!-- en -->` 下面的英文心得（見第 4 節）。英文模式下有填就顯示英文，沒填就顯示中文。地址、分店名、營業時間備註只有中文。
+- 程式裡取用顯示名稱的工具：`FM.i18n.tagName(tag)`、`FM.i18n.groupName(group)`、`FM.i18n.placeName(region/city/district)`、`FM.place.parts(shop)`、`FM.dishName(dish)`、`shop.displayName`、`shop.bodyHtml`。
+- 不使用任何線上翻譯服務；英文內容都由我提供，或由 AI 翻譯後寫進檔案並告訴我。
+- 切換語言時，`app.js` 會呼叫各頁面的 `reset()` 再重畫目前這一頁。新增頁面時，如果頁面有快取的畫面，也要提供 `reset()`。

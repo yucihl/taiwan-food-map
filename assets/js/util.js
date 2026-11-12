@@ -24,29 +24,25 @@
       (Array.isArray(v) && v.length === 0);
   }
 
-  const PRICE = {
-    1: { sign: '$', text: 'NT$150 以下' },
-    2: { sign: '$$', text: 'NT$151–300' },
-    3: { sign: '$$$', text: 'NT$301–600' },
-    4: { sign: '$$$$', text: 'NT$600 以上' },
-  };
-
-  const RATING = {
-    5: { title: '人生名單', text: '專程跑一趟也值得' },
-    4: { title: '很推薦', text: '會再訪，也會帶朋友來' },
-    3: { title: '不錯', text: '剛好在附近就會吃' },
-    2: { title: '普通偏失望', text: '有明顯缺點，應該不會再去' },
-    1: { title: '踩雷', text: '不推薦，記下來提醒自己' },
-  };
+  // 評分與價位標準（AGENTS.md 第 5 節）。說明文字的中英版本在 i18n.js 的 rating.* / price.*
+  const t = (k, v) => FM.t(k, v);
+  const PRICE = {};
+  [1, 2, 3, 4].forEach((n) => {
+    PRICE[n] = { sign: '$'.repeat(n), get text() { return t('price.' + n); } };
+  });
+  const RATING = {};
+  [1, 2, 3, 4, 5].forEach((n) => {
+    RATING[n] = { get title() { return t(`rating.${n}.title`); }, get text() { return t(`rating.${n}.text`); } };
+  });
 
   /** 星星評分 HTML；沒有評分回傳淡色文字 */
   function starsHtml(rating, opts) {
     const r = Number(rating);
     if (!r || r < 1 || r > 5) {
-      return opts && opts.hideEmpty ? '' : '<span class="stars stars-empty">尚未評分</span>';
+      return opts && opts.hideEmpty ? '' : `<span class="stars stars-empty">${h(t('stars.none'))}</span>`;
     }
     const n = Math.round(r);
-    return `<span class="stars" role="img" aria-label="${n} 顆星，${RATING[n].title}">` +
+    return `<span class="stars" role="img" aria-label="${h(t('stars.aria', { n, title: RATING[n].title }))}">` +
       '<span class="on">' + '★'.repeat(n) + '</span>' +
       '<span class="off">' + '★'.repeat(5 - n) + '</span></span>';
   }
@@ -66,7 +62,7 @@
   /** 標籤膠囊 */
   function tagChipHtml(tag, extraClass) {
     return `<span class="tag-chip ${extraClass || ''}" style="--tag:${h(tag.color)}">` +
-      `<span aria-hidden="true">${h(tag.emoji)}</span>${h(tag.name)}</span>`;
+      `<span aria-hidden="true">${h(tag.emoji)}</span>${h(FM.i18n.tagName(tag))}</span>`;
   }
 
   function debounce(fn, ms) {
@@ -79,7 +75,7 @@
 
   /* —— 時間（一律以台灣時間計算）—— */
   const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  const DAY_NAMES = { mon: '週一', tue: '週二', wed: '週三', thu: '週四', fri: '週五', sat: '週六', sun: '週日' };
+  const dayName = (d) => t('day.' + d);
   const WEEK_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
   function taipeiNow() {
@@ -164,16 +160,16 @@
       await navigator.clipboard.writeText(text);
       if (btn) {
         const old = btn.textContent;
-        btn.textContent = '✓ 已複製';
+        btn.textContent = t('copied');
         setTimeout(() => (btn.textContent = old), 1500);
       }
     } catch (e) {
-      toast('瀏覽器不允許自動複製，請手動選取文字後複製 🙏');
+      toast(h(t('copyFail')));
     }
   }
 
   FM.util = {
     h, norm, isBlank, PRICE, RATING, starsHtml, priceSign, priceText, tagChipHtml, debounce,
-    DAY_NAMES, WEEK_ORDER, taipeiNow, parseRanges, openState, hasAnyHours, fmtDate, toast, copyText,
+    dayName, WEEK_ORDER, taipeiNow, parseRanges, openState, hasAnyHours, fmtDate, toast, copyText,
   };
 })();
