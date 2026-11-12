@@ -5,13 +5,18 @@
   const FM = (window.FM = window.FM || {});
   const { norm, isBlank } = FM.util;
 
+  const byName = (a, b) => a.displayName.localeCompare(b.displayName, FM.i18n.locale);
+  // 排序的顯示文字在 i18n.js 的 sort.<key>
   const SORTS = {
-    rating: { label: '評分高→低', fn: (a, b) => (b.rating || 0) - (a.rating || 0) },
-    visited: { label: '最近造訪', fn: (a, b) => String(b.visited || '').localeCompare(String(a.visited || '')) },
-    updated: { label: '最近更新', fn: (a, b) => String(b.updated || '').localeCompare(String(a.updated || '')) },
-    price: { label: '價位低→高', fn: (a, b) => (a.price_level || 9) - (b.price_level || 9) },
-    name: { label: '店名', fn: (a, b) => a.displayName.localeCompare(b.displayName, 'zh-Hant-TW') },
+    rating: { fn: (a, b) => (b.rating || 0) - (a.rating || 0) },
+    visited: { fn: (a, b) => String(b.visited || '').localeCompare(String(a.visited || '')) },
+    updated: { fn: (a, b) => String(b.updated || '').localeCompare(String(a.updated || '')) },
+    price: { fn: (a, b) => (a.price_level || 9) - (b.price_level || 9) },
+    name: { fn: byName },
   };
+  Object.keys(SORTS).forEach((k) => {
+    Object.defineProperty(SORTS[k], 'label', { get: () => FM.t('sort.' + k) });
+  });
 
   function defaults() {
     return { region: '', city: '', district: '', tags: [], prices: [], q: '', sort: 'rating', showClosed: false };
@@ -57,25 +62,29 @@
   function apply(shops, st) {
     const list = shops.filter((s) => matches(s, st));
     const sort = SORTS[st.sort] || SORTS.rating;
-    return list.sort((a, b) => sort.fn(a, b) || a.displayName.localeCompare(b.displayName, 'zh-Hant-TW'));
+    return list.sort((a, b) => sort.fn(a, b) || byName(a, b));
   }
 
-  /** 搜尋建議：地點（縣市、區）＋店家 */
+  /** 搜尋建議：地點（縣市、區）＋店家。中文和英文地名都能找到（例：臺北、Taipei、Zhongzheng） */
   function suggest(q) {
     const nq = norm(q);
     if (!nq) return { places: [], shops: [] };
     const { index, shops } = FM.data;
+    const { placeName } = FM.i18n;
+    const en = (o) => norm(o.name_en || '');
+    // 英文比對時忽略 City／County／District 等字尾以外的空白差異
+    const enHit = (o) => nq.length >= 2 && /[a-z]/.test(nq) && en(o).replace(/\s+/g, ' ').includes(nq);
     const places = [];
     for (const r of index.regions) {
       for (const c of r.cities) {
         const short = c.name.slice(0, -1); // 「臺北」也能找到「臺北市」
-        if (c.name.includes(nq) || (nq.length >= 2 && short.includes(nq)) || c.slug.includes(nq)) {
-          places.push({ type: 'city', region: r.id, city: c.name, label: c.name, sub: r.name });
+        if (c.name.includes(nq) || (nq.length >= 2 && short.includes(nq)) || c.slug.includes(nq) || enHit(c)) {
+          places.push({ type: 'city', region: r.id, city: c.name, label: placeName(c), sub: placeName(r) });
         }
         for (const d of c.districts) {
           const dShort = d.name.length > 2 ? d.name.slice(0, -1) : d.name;
-          if (d.name.includes(nq) || (nq.length >= 2 && dShort.includes(nq)) || (c.name + d.name).includes(nq) || d.slug === nq) {
-            places.push({ type: 'district', region: r.id, city: c.name, district: d.name, label: `${c.name} ${d.name}`, sub: r.name });
+          if (d.name.includes(nq) || (nq.length >= 2 && dShort.includes(nq)) || (c.name + d.name).includes(nq) || d.slug === nq || enHit(d)) {
+            places.push({ type: 'district', region: r.id, city: c.name, district: d.name, label: `${placeName(c)}${FM.t('sep.placeLong')}${placeName(d)}`, sub: placeName(r) });
           }
         }
       }

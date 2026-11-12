@@ -1,6 +1,7 @@
 // 由 assets/geo/taiwan-towns.topo.json 產生 _data/regions.json
 // 用法：node scripts/gen-regions.mjs（需要先 npm install）
 // 只有在行政區劃變動時才需要重跑；平常新增店家不用執行。
+// 每個區域、縣市、區都有 name_en（縣市和區來自 taiwan-towns 的 COUNTYENG／TOWNENG），給英文介面使用。
 import fs from 'node:fs';
 import { feature } from 'topojson-client';
 
@@ -12,11 +13,11 @@ const norm = (s) => s.replace(/台/g, '臺');
 
 // 區域與縣市順序（國發會區域劃分＋離島）
 const REGIONS = [
-  { id: 'north', name: '北部', cities: ['臺北市', '新北市', '基隆市', '桃園市', '新竹市', '新竹縣', '宜蘭縣'] },
-  { id: 'central', name: '中部', cities: ['苗栗縣', '臺中市', '彰化縣', '南投縣', '雲林縣'] },
-  { id: 'south', name: '南部', cities: ['嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣'] },
-  { id: 'east', name: '東部', cities: ['花蓮縣', '臺東縣'] },
-  { id: 'islands', name: '離島', cities: ['澎湖縣', '金門縣', '連江縣'] },
+  { id: 'north', name: '北部', name_en: 'North', cities: ['臺北市', '新北市', '基隆市', '桃園市', '新竹市', '新竹縣', '宜蘭縣'] },
+  { id: 'central', name: '中部', name_en: 'Central', cities: ['苗栗縣', '臺中市', '彰化縣', '南投縣', '雲林縣'] },
+  { id: 'south', name: '南部', name_en: 'South', cities: ['嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣'] },
+  { id: 'east', name: '東部', name_en: 'East', cities: ['花蓮縣', '臺東縣'] },
+  { id: 'islands', name: '離島', name_en: 'Islands', cities: ['澎湖縣', '金門縣', '連江縣'] },
 ];
 const CITY_SLUG = {
   '臺北市': 'taipei', '新北市': 'new-taipei', '基隆市': 'keelung', '桃園市': 'taoyuan',
@@ -44,7 +45,7 @@ const slugify = (eng) => eng.replace(/\s+(District|Township|City|County)$/i, '')
 
 const out = { regions: [] };
 for (const r of REGIONS) {
-  const region = { id: r.id, name: r.name, cities: [] };
+  const region = { id: r.id, name: r.name, name_en: r.name_en, cities: [] };
   for (const cityName of r.cities) {
     const cf = counties.find((f) => norm(f.properties.COUNTYNAME) === cityName);
     if (!cf) throw new Error('找不到縣市 ' + cityName);
@@ -55,6 +56,7 @@ for (const r of REGIONS) {
         const tb = bbox(f.geometry);
         return {
           name: norm(f.properties.TOWNNAME),
+          name_en: f.properties.TOWNENG, // 英文名稱（例：Zhongzheng District）
           slug: slugify(f.properties.TOWNENG),
           bounds: tb.map(r5),
         };
@@ -62,6 +64,7 @@ for (const r of REGIONS) {
       .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant-TW'));
     region.cities.push({
       name: cityName,
+      name_en: cf.properties.COUNTYENG, // 英文名稱（例：Taipei City）
       slug: CITY_SLUG[cityName],
       bounds: b.map(r5),
       districts,

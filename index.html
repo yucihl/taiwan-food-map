@@ -14,18 +14,20 @@
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-  <a class="skip-link" href="#main">跳到主要內容</a>
+  <!-- 有 data-i18n 的文字由 app.js 依目前語言填入（字典在 assets/js/i18n.js） -->
+  <a class="skip-link" href="#main" data-i18n="skip">跳到主要內容</a>
 
   <header class="site-header">
     <div class="wrap header-inner">
       <a class="logo" href="#" data-nav="home">
         <span class="logo-mark" aria-hidden="true">🍙</span>
-        <span class="logo-text"><span class="logo-long">我的</span>台灣美食圖鑑</span>
+        <span class="logo-text"><span class="logo-long" data-i18n="site.titleLong">我的</span><span data-i18n="site.titleShort">台灣美食圖鑑</span></span>
       </a>
-      <nav class="site-nav" aria-label="主選單">
-        <a href="#" data-nav="home">地圖</a>
-        <a href="#about" data-nav="about">關於</a>
-        <a href="#add" data-nav="add" class="btn btn-primary btn-sm">＋ 新增<span class="nav-long">店家</span></a>
+      <nav class="site-nav" aria-label="主選單" data-i18n-aria="nav.label">
+        <a href="#" data-nav="home" data-i18n="nav.home">地圖</a>
+        <a href="#about" data-nav="about" data-i18n="nav.about">關於</a>
+        <button type="button" class="lang-btn" id="lang-toggle" aria-label="Switch to English"><span data-lang="zh">中</span><span class="sep" aria-hidden="true">/</span><span data-lang="en">EN</span></button>
+        <a href="#add" data-nav="add" class="btn btn-primary btn-sm"><span data-i18n="nav.add">＋ 新增</span><span class="nav-long" data-i18n="nav.addLong">店家</span></a>
       </nav>
     </div>
   </header>
@@ -43,19 +45,20 @@
 
   <footer class="site-footer">
     <div class="wrap footer-inner">
-      <p>© <span id="year"></span> 我的台灣美食圖鑑 · 評分都是我的主觀感受</p>
+      <p>© <span id="year"></span> <span data-i18n="footer.text">我的台灣美食圖鑑 · 評分都是我的主觀感受</span></p>
       <p class="muted" id="built-at"></p>
     </div>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <!-- 載入順序很重要：vendor → util/storage → 各模組 → app.js -->
+  <!-- 載入順序很重要：vendor → util/storage → i18n → 各模組 → app.js -->
   <script src="assets/vendor/leaflet/leaflet.js"></script>
   <script src="assets/vendor/markercluster/leaflet.markercluster.js"></script>
   <script src="assets/vendor/topojson/topojson-client.min.js"></script>
   <script src="assets/js/util.js"></script>
   <script src="assets/js/storage.js"></script>
+  <script src="assets/js/i18n.js"></script>
   <script src="assets/js/data.js"></script>
   <script src="assets/js/filters.js"></script>
   <script src="assets/js/map.js"></script>

@@ -1,11 +1,13 @@
 /* map.js — Leaflet 地圖：底圖、店家標記、依縮放等級切換標記樣式。
  *  縮放 ≤ 10 ：群集泡泡（數字）
  *  縮放 11–13：圓點（主標籤 emoji）
- *  縮放 ≥ 14 ：膠囊標記（emoji＋店名，下方列出所有標籤 emoji） */
+ *  縮放 ≥ 14 ：膠囊標記（emoji＋店名，下方列出所有標籤名稱）
+ * 店名、標籤、提示文字都依目前語言顯示（FM.i18n）。 */
 (function () {
   'use strict';
   const FM = (window.FM = window.FM || {});
   const { h, starsHtml, priceText } = FM.util;
+  const t = (k, v) => FM.t(k, v);
 
   const TAIWAN = [[21.85, 119.95], [25.35, 122.05]];
   const MAX_BOUNDS = [[21.7, 117.8], [26.6, 122.6]];
@@ -34,7 +36,11 @@
         style: { color: '#D6C1A0', weight: 0.8, fillColor: '#F6EBD6', fillOpacity: 1 },
         onEachFeature: (f, layer) => {
           const p = f.properties;
-          layer.bindTooltip(`${p.COUNTYNAME.replace(/台/g, '臺')} ${p.TOWNNAME.replace(/台/g, '臺')}`, { sticky: true, className: 'town-tip', direction: 'top' });
+          // 依目前語言顯示地名（切換語言時地圖會重建，所以這裡讀一次就好）
+          const label = FM.i18n.isEn()
+            ? `${p.TOWNENG}, ${p.COUNTYENG}`
+            : `${p.COUNTYNAME.replace(/台/g, '臺')} ${p.TOWNNAME.replace(/台/g, '臺')}`;
+          layer.bindTooltip(h(label), { sticky: true, className: 'town-tip', direction: 'top' });
           layer.on('mouseover', () => layer.setStyle({ fillColor: '#F1DFC0' }));
           layer.on('mouseout', () => layer.setStyle({ fillColor: '#F6EBD6' }));
         },
@@ -48,7 +54,7 @@
     if (window.FOODMAP_PREVIEW) return addFallbackBase(map);
     const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 貢獻者',
+      attribution: `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ${h(t('map.attribution'))}`,
     });
     let ok = 0, fail = 0;
     tiles.on('tileload', () => ok++);
@@ -71,7 +77,7 @@
     const t = shop.primaryTag;
     const cls = ['mk', shop.status === 'closed' ? 'is-closed' : ''].join(' ');
     if (b === 'pill') {
-      const more = shop.tagObjs.map((x) => `<span style="--c:${h(x.color)}">${h(x.emoji)}${h(x.name)}</span>`).join('');
+      const more = shop.tagObjs.map((x) => `<span style="--c:${h(x.color)}">${h(x.emoji)}${h(FM.i18n.tagName(x))}</span>`).join('');
       return L.divIcon({
         className: cls,
         iconSize: null,
@@ -97,8 +103,8 @@
       <strong class="pp-name">${h(shop.displayName)}${shop.branch ? ` <small>${h(shop.branch)}</small>` : ''}</strong>
       <div class="pp-meta">${starsHtml(shop.rating)}${price ? ` · ${h(price)}` : ''}</div>
       <div class="pp-tags">${shop.tagObjs.map((t) => FM.util.tagChipHtml(t, 'sm')).join('')}</div>
-      ${shop.coords_approx ? '<div class="pp-note">📍 位置為估計，可能差一點點</div>' : ''}
-      <a class="pp-link" href="#${h(shop.slug)}">查看店家頁 →</a></div></div>`;
+      ${shop.coords_approx ? `<div class="pp-note">${h(t('map.approx'))}</div>` : ''}
+      <a class="pp-link" href="#${h(shop.slug)}">${h(t('map.viewShop'))}</a></div></div>`;
   }
 
   function clusterIcon(cluster) {
@@ -118,13 +124,13 @@
       onAdd() {
         const btn = L.DomUtil.create('button', 'map-drag-btn');
         btn.type = 'button';
-        btn.textContent = '✋ 拖曳地圖';
+        btn.textContent = t('map.dragOn');
         L.DomEvent.disableClickPropagation(btn);
         btn.addEventListener('click', () => {
           const on = !m.dragging.enabled();
           on ? m.dragging.enable() : m.dragging.disable();
           btn.classList.toggle('on', on);
-          btn.textContent = on ? '🔒 固定地圖' : '✋ 拖曳地圖';
+          btn.textContent = on ? t('map.dragOff') : t('map.dragOn');
         });
         return btn;
       },
@@ -159,7 +165,9 @@
     else map.fitBounds(TAIWAN);
     currentBand = band(map.getZoom());
 
-    map.on('zoomend', () => {
+    // 事件裡用 e.target（這張地圖本身），切換語言重建後舊地圖的延遲事件也不會出錯
+    map.on('zoomend', (e) => {
+      if (e.target !== map) return;
       const b = band(map.getZoom());
       if (b !== currentBand) {
         currentBand = b;
@@ -167,7 +175,8 @@
       }
     });
     if (opts && opts.onMove) {
-      map.on('moveend', () => {
+      map.on('moveend', (e) => {
+        if (e.target !== map) return;
         const c = map.getCenter();
         opts.onMove({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() });
       });
@@ -230,6 +239,19 @@
     if (el) el.classList.toggle('is-hot', !!on);
   }
 
+  /** 拆掉首頁地圖（切換語言時重建用），回傳拆掉前的位置 */
+  function destroyHome() {
+    let view = null;
+    if (map) {
+      const c = map.getCenter();
+      view = { lat: c.lat, lng: c.lng, zoom: map.getZoom() };
+      map.stop();
+      map.remove();
+    }
+    map = null; cluster = null; markers = new Map(); currentBand = null;
+    return view;
+  }
+
   function invalidate() {
     if (map) setTimeout(() => map.invalidateSize(), 0);
   }
@@ -245,5 +267,5 @@
     return m;
   }
 
-  FM.map = { createHome, setShops, fitTo, focusShop, highlight, invalidate, createMini };
+  FM.map = { createHome, destroyHome, setShops, fitTo, focusShop, highlight, invalidate, createMini };
 })();

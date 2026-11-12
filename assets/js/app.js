@@ -2,12 +2,38 @@
  *   #          首頁（地圖）
  *   #<slug>    店家頁
  *   #add       新增店家
- *   #about     關於 */
+ *   #about     關於
+ * 也負責 index.html 上的固定文字（data-i18n）和語言切換按鈕。 */
 (function () {
   'use strict';
   const FM = (window.FM = window.FM || {});
   const VIEWS = ['home', 'shop', 'add', 'about', '404'];
   let homeScroll = 0, current = null;
+  const t = (k, v) => FM.t(k, v);
+
+  /** 把 index.html 上有 data-i18n 的固定文字換成目前語言 */
+  function applyStaticText() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+    const btn = document.getElementById('lang-toggle');
+    btn.setAttribute('aria-label', t('lang.toggleLabel'));
+    btn.querySelectorAll('[data-lang]').forEach((el) => el.classList.toggle('on', el.dataset.lang === FM.i18n.lang));
+    if (FM.data && FM.data.meta.built) document.getElementById('built-at').textContent = t('footer.built', { time: FM.data.meta.built });
+    const b = document.getElementById('preview-banner');
+    if (window.FOODMAP_PREVIEW) { b.hidden = false; b.textContent = t('preview.banner'); }
+  }
+
+  /** 切換語言：更新固定文字，拆掉已畫好的頁面，再依網址重畫目前這一頁 */
+  function onLangChange() {
+    applyStaticText();
+    if (!FM.data) return; // 資料還沒讀完：等一下 route() 會直接用新語言畫
+    FM.views.home.reset();
+    FM.views.add.reset();
+    const y = window.scrollY;
+    if (current === 'home') homeScroll = y;
+    route();
+    window.scrollTo(0, y);
+  }
 
   function showView(name) {
     if (current === 'home') homeScroll = window.scrollY;
@@ -23,7 +49,7 @@
     if (!key || key === 'home' || key === 'map') {
       showView('home');
       FM.views.home.show();
-      document.title = '我的台灣美食圖鑑';
+      document.title = t('site.title');
       window.scrollTo(0, homeScroll);
       return;
     }
@@ -36,7 +62,8 @@
     } else {
       showView('404');
       document.getElementById('view-404').innerHTML =
-        '<div class="empty card"><p class="big">🍙</p><p>找不到這一頁，可能是店家網址打錯了</p><a class="btn" href="#">回到地圖</a></div>';
+        `<div class="empty card"><p class="big">🍙</p><p>${FM.util.h(t('notFound.text'))}</p><a class="btn" href="#" data-nav="home">${FM.util.h(t('notFound.back'))}</a></div>`;
+      document.title = t('site.title');
     }
     window.scrollTo(0, 0);
   }
@@ -60,19 +87,19 @@
 
   async function start() {
     document.getElementById('year').textContent = new Date().getFullYear();
+    applyStaticText();
+    document.getElementById('lang-toggle').addEventListener('click', () => {
+      FM.i18n.setLang(FM.i18n.isEn() ? 'zh' : 'en');
+    });
+    FM.i18n.onChange(onLangChange);
     try {
       await FM.loadData();
     } catch (err) {
       document.getElementById('main').innerHTML =
-        `<div class="empty card"><p class="big">😵</p><p>資料讀取失敗：${FM.util.h(err.message)}</p></div>`;
+        `<div class="empty card"><p class="big">😵</p><p>${FM.util.h(t('error.load', { msg: err.message }))}</p></div>`;
       return;
     }
-    if (FM.data.meta.built) document.getElementById('built-at').textContent = `資料更新於 ${FM.data.meta.built}`;
-    if (window.FOODMAP_PREVIEW) {
-      const b = document.getElementById('preview-banner');
-      b.hidden = false;
-      b.textContent = '👀 預覽版：這裡無法載入街道圖磚，所以底圖只畫出行政區界線；上傳到 GitHub Pages 後會顯示完整的街道地圖。';
-    }
+    applyStaticText();
     document.addEventListener('click', (e) => {
       const a = e.target.closest('a[data-nav="home"]');
       if (a) goHome(e);

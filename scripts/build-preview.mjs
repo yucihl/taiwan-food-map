@@ -12,12 +12,16 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const CHECK_ONLY = process.argv.includes('--check');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
-const FIELDS = ['name', 'branch', 'status', 'address', 'zip', 'city', 'district', 'lat', 'lng', 'coords_approx',
+const FIELDS = ['name', 'name_en', 'branch', 'status', 'address', 'zip', 'city', 'district', 'lat', 'lng', 'coords_approx',
   'price_level', 'price_note', 'rating', 'tags', 'hours', 'hours_checked', 'dishes', 'photos', 'visited', 'updated', 'links'];
 
 const tags = JSON.parse(read('_data/tags.json'));
 const regions = JSON.parse(read('_data/regions.json')).regions;
 const tagNames = new Set(tags.map((t) => t.name));
+const warnings = [];
+const warn = (file, msg) => warnings.push(`  ⚠️  ${file}：${msg}`);
+// 每個標籤都要有英文名稱（AGENTS.md 第 6 節）
+for (const t of tags) if (!t.name_en || !String(t.name_en).trim()) warn('_data/tags.json', `標籤「${t.name}」缺少 name_en`);
 const cityNames = new Set(regions.flatMap((r) => r.cities.map((c) => c.name)));
 
 // js-yaml 會把日期轉成 Date；Jekyll 的 jsonify 輸出是 "YYYY-MM-DD"
@@ -27,9 +31,6 @@ const plain = (v) => {
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)]));
   return v === undefined ? null : v;
 };
-
-const warnings = [];
-const warn = (file, msg) => warnings.push(`  ⚠️  ${file}：${msg}`);
 
 const shops = [];
 for (const file of fs.readdirSync(path.join(ROOT, '_shops')).filter((f) => f.endsWith('.md')).sort()) {
@@ -63,7 +64,10 @@ for (const file of fs.readdirSync(path.join(ROOT, '_shops')).filter((f) => f.end
   }
   const shop = { slug };
   for (const f of FIELDS) shop[f] = plain(data[f]);
-  shop.body = marked.parse(m[2] || '').trim();
+  // 心得用 <!-- en --> 分成中文（上）和英文（下），和 api/shops.json 一致
+  const [bodyZh, ...bodyEn] = (m[2] || '').split('<!-- en -->');
+  shop.body = marked.parse(bodyZh || '').trim();
+  shop.body_en = marked.parse(bodyEn.join('<!-- en -->')).trim();
   shops.push(shop);
 }
 

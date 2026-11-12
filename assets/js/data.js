@@ -6,12 +6,12 @@
   const { norm, isBlank } = FM.util;
 
   const FALLBACK_TAG = { emoji: '🏷️', color: '#A68A64', group: '其他', preset: false };
-  const DEFAULT_TAG = { name: '美食', emoji: '🍽️', color: '#D9822B', group: '其他' };
+  const DEFAULT_TAG = { name: '美食', name_en: 'Food', emoji: '🍽️', color: '#D9822B', group: '其他' };
   const TW_BOUNDS = { s: 21.7, w: 117.8, n: 26.6, e: 122.6 };
 
   async function fetchJson(path) {
     const res = await fetch(path, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`${path} 讀取失敗（${res.status}）`);
+    if (!res.ok) throw new Error(FM.t('error.fetch', { path, status: res.status }));
     return res.json();
   }
 
@@ -69,7 +69,15 @@
   function normalizeShop(index, raw) {
     const s = Object.assign({}, raw);
     s.slug = String(s.slug || '').trim();
-    s.displayName = isBlank(s.name) ? '未命名店家' : String(s.name).trim();
+    // 顯示名稱依目前語言決定：英文模式有 name_en 就用英文
+    Object.defineProperty(s, 'displayName', {
+      enumerable: true,
+      get() {
+        if (isBlank(s.name) && isBlank(s.name_en)) return FM.t('unnamed');
+        if (isBlank(s.name)) return String(s.name_en).trim();
+        return String(FM.i18n.pick(s.name, s.name_en)).trim();
+      },
+    });
     s.status = ['open', 'temp-closed', 'closed'].includes(s.status) ? s.status : 'open';
 
     // 位置：明確寫的優先，其次從地址推算
@@ -102,10 +110,19 @@
     s.photos = toList(s.photos).map((p) => (typeof p === 'string' ? { file: p } : p)).filter((p) => p && !isBlank(p.file));
     s.links = toList(s.links).filter((l) => l && !isBlank(l.url));
     s.body = isBlank(s.body) ? '' : s.body;
+    s.body_en = isBlank(s.body_en) ? '' : s.body_en;
+    // 心得依目前語言決定：英文模式有 body_en 就用英文
+    Object.defineProperty(s, 'bodyHtml', { get: () => FM.i18n.pick(s.body, s.body_en) });
+
+    // 搜尋同時包含中文和英文（店名、地名、標籤、餐點）
+    const cityObj = cityInfo ? cityInfo.city : null;
+    const distObj = cityObj && s.district ? cityObj.districts.find((d) => d.name === s.district) : null;
 
     s.search = norm([
-      s.name, s.branch, s.address, s.city, s.district,
-      s.tags.join(' '), s.dishes.map((d) => d.name).join(' '),
+      s.name, s.name_en, s.branch, s.address, s.city, s.district,
+      cityObj && cityObj.name_en, distObj && distObj.name_en,
+      s.tags.join(' '), s.tagObjs.map((t) => t.name_en).join(' '),
+      s.dishes.map((d) => [d.name, d.name_en].join(' ')).join(' '),
     ].filter(Boolean).join(' '));
     return s;
   }
@@ -119,10 +136,34 @@
     return FM.data;
   }
 
+  /** 店家所在地的顯示名稱（依目前語言），例：['臺北市', '中正區'] 或 ['Taipei City', 'Zhongzheng District'] */
+  function placeParts(shop) {
+    const info = shop.city && FM.data.index.cities.get(shop.city);
+    if (!info) return [];
+    const d = shop.district && info.city.districts.find((x) => x.name === shop.district);
+    return [FM.i18n.placeName(info.city), d ? FM.i18n.placeName(d) : null].filter(Boolean);
+  }
+
+  /** 縣市名稱 → 顯示名稱；區名稱需要搭配縣市 */
+  function cityLabel(name) {
+    const info = FM.data.index.cities.get(name);
+    return info ? FM.i18n.placeName(info.city) : name;
+  }
+  function districtLabel(city, name) {
+    const info = FM.data.index.cities.get(city);
+    const d = info && info.city.districts.find((x) => x.name === name);
+    return d ? FM.i18n.placeName(d) : name;
+  }
+
+  /** 餐點名稱（依目前語言） */
+  const dishName = (d) => FM.i18n.pick(d.name, d.name_en);
+
   function photoUrl(shop, file) {
     return `assets/images/shops/${encodeURIComponent(shop.slug)}/${encodeURIComponent(file)}`;
   }
 
   FM.loadData = load;
   FM.photoUrl = photoUrl;
+  FM.place = { parts: placeParts, city: cityLabel, district: districtLabel };
+  FM.dishName = dishName;
 })();
